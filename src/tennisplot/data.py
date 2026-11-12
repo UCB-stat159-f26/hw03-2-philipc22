@@ -120,3 +120,24 @@ def _download_dob(name_key):
             return player_dob
     raise ValueError(f"No birth date for '{name_key}' on Tennis Abstract, "
                      "so ages can't be computed.")
+
+
+def _display_name(name_key):
+    """Turn 'SerenaWilliams' into 'Serena Williams' (used in the plot title)."""
+    return re.sub(r"(?<=[a-z])(?=[A-Z])", " ", name_key)
+
+
+def get_matches(player_name):
+    """Download a player's career matches from Tennis Abstract and clean them.
+
+    player_name: e.g. "serena williams", "Serena Williams" or "SerenaWilliams".
+    Returns one row per match (walkovers dropped) with columns player, date,
+    tournament, level, opponent, result ("W"/"L"), age, opp_age and
+    age_diff = age - opp_age (> 0 means the player was older).
+    Raises ValueError if Tennis Abstract has no player with that name.
+    """
+    name_key = _format_name(player_name)
+    raw = _parse_matches(_download_career(name_key))
+    matches = _clean_matches(raw, _download_dob(name_key))
+    matches.insert(0, "player", _display_name(name_key))
+    return matches

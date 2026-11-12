@@ -4,9 +4,10 @@ import pandas as pd
 import pytest
 import requests
 
+from tennisplot import get_matches
 from tennisplot.data import (_clean_matches, _compute_opp_age, _download_career,
-                             _download_dob, _format_name, _parse_dob,
-                             _parse_matches)
+                             _display_name, _download_dob, _format_name,
+                             _parse_dob, _parse_matches)
 
 MOCK_DIR = Path(__file__).parent / "mock"
 SERENA_DOB = pd.Timestamp("1981-09-26")  # mock female rows are Serena's
@@ -183,3 +184,26 @@ def test_download_dob_missing(monkeypatch):
     monkeypatch.setattr(requests, "get", fake_site({"cgi-bin": (200, "")}))
     with pytest.raises(ValueError, match="No birth date"):
         _download_dob("GastonSanchez")
+
+
+
+# get_matches (public) -------------------------------------------------------
+
+def test_display_name():
+    assert _display_name("SerenaWilliams") == "Serena Williams"
+
+
+def test_get_matches_with_fake_site(monkeypatch):
+    pages = {"jsmatches": (200, (MOCK_DIR / "female_career.js").read_text()),
+             "wplayer": (200, "var dob = 19810926;")}
+    monkeypatch.setattr(requests, "get", fake_site(pages))
+    serena = get_matches("serena williams")
+    assert len(serena) == 3
+    assert (serena["player"] == "Serena Williams").all()
+    assert serena["age_diff"].iloc[0] == pytest.approx((5147 - 6858) / 365.25)
+
+
+def test_get_matches_unknown_player(monkeypatch):
+    monkeypatch.setattr(requests, "get", fake_site({}))
+    with pytest.raises(ValueError, match="No Tennis Abstract player"):
+        get_matches("GastonSanchez")
