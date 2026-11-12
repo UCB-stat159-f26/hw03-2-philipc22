@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 
 import pandas as pd
@@ -6,8 +7,9 @@ import requests
 
 from tennisplot import get_matches
 from tennisplot.data import (_clean_matches, _compute_opp_age, _download_career,
-                             _display_name, _download_dob, _format_name,
-                             _parse_dob, _parse_matches, _player_page)
+                             _display_name, _download_dob, _fetch_text,
+                             _format_name, _parse_dob, _parse_matches,
+                             _player_page)
 
 MOCK_DIR = Path(__file__).parent / "mock"
 SERENA_DOB = pd.Timestamp("1981-09-26")  # mock female rows are Serena's
@@ -171,6 +173,20 @@ def test_download_career_other_http_error(monkeypatch):
     monkeypatch.setattr(requests, "get", fake_site({"jsmatches": (500, "")}))
     with pytest.raises(requests.HTTPError):
         _download_career("SerenaWilliams")
+
+
+def test_fetch_text_retries_after_rate_limit(monkeypatch):
+    responses = iter([FakeResponse(429), FakeResponse(429), FakeResponse(200, "ok")])
+    monkeypatch.setattr(requests, "get", lambda url, **kwargs: next(responses))
+    monkeypatch.setattr(time, "sleep", lambda seconds: None)  # don't really wait
+    assert _fetch_text("https://www.tennisabstract.com/x") == "ok"
+
+
+def test_fetch_text_gives_up_after_retries(monkeypatch):
+    monkeypatch.setattr(requests, "get", fake_site({"x": (429, "")}))
+    monkeypatch.setattr(time, "sleep", lambda seconds: None)
+    with pytest.raises(requests.HTTPError, match="429"):
+        _fetch_text("https://www.tennisabstract.com/x")
 
 
 def test_player_page_female(female_raw):

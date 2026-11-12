@@ -2,6 +2,7 @@
 
 import json
 import re
+import time
 import warnings
 
 import pandas as pd
@@ -93,9 +94,18 @@ def _clean_matches(raw, player_dob):
     return df[COLUMNS].sort_values("date").reset_index(drop=True)
 
 
+def _get(url):
+    """requests.get, but wait and retry if the site says 'too many requests'."""
+    for wait_seconds in [10, 30, 60, None]:
+        response = requests.get(url, headers=HEADERS, timeout=60)
+        if response.status_code != 429 or wait_seconds is None:
+            return response
+        time.sleep(wait_seconds)  # 429: Tennis Abstract is rate limiting us
+
+
 def _fetch_text(url):
     """Download `url` and return its text, or None if the page doesn't exist."""
-    response = requests.get(url, headers=HEADERS, timeout=60)
+    response = _get(url)
     if response.status_code == 404:
         return None
     response.raise_for_status()  # any other error (403, 500, ...) stops here

@@ -106,6 +106,10 @@ on the mock JS files, and the download functions are tested with a fake
   many.
 - **Invalid names:** Tennis Abstract returns 404 for an unknown player's
   Career file, which `get_matches` turns into a `ValueError`.
+- **Rate limits:** Tennis Abstract answers "429 Too Many Requests" when
+  pages are requested too fast, so downloads wait (10, 30, then 60 seconds)
+  and retry before giving up. Each player needs only two requests: the
+  Career file and one player page.
 - **Name formatting** only removes spaces and capitalizes words, so names
   whose Tennis Abstract spelling differs (e.g. accents or hyphens) need to be
   typed as Tennis Abstract spells them.
