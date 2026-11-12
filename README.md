@@ -99,6 +99,10 @@ on the mock JS files, and the download functions are tested with a fake
 - **Female vs. male files:** both use the same field positions. Field 16 is
   treated as a birth date when it is exactly 8 digits (women) and as an age
   otherwise (men), so the package never needs to know the player's gender.
+- **Men's Career files end in 2016:** Tennis Abstract's `RafaelNadalCareer.js`
+  ends on 2016-10-10, and newer matches are in a separate file
+  (`RafaelNadal.js`). The package uses only the Career files, as the
+  instructions say, so men's plots stop around 2016.
 - **Ages** are in years, computed as days / 365.25, as in HW2.
 - **Walkovers** (`W/O`) are dropped because no tennis was played.
   **Retirements** (`RET`) are kept because the match was partly played.
