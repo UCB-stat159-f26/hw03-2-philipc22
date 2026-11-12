@@ -111,15 +111,20 @@ def _download_career(name_key):
     return js_text
 
 
-def _download_dob(name_key):
+def _player_page(raw):
+    """Women's files give opponents' birth dates (8 digits), men's give ages."""
+    is_female = raw["opp_birth_or_age"].str.fullmatch(r"\d{8}").any()
+    return "wplayer" if is_female else "player"
+
+
+def _download_dob(name_key, page):
     """Return the player's birth date from their Tennis Abstract page."""
-    for page in ["wplayer", "player"]:  # women's page, then men's page
-        page_html = _fetch_text(f"{BASE_URL}/cgi-bin/{page}.cgi?p={name_key}")
-        player_dob = _parse_dob(page_html or "")
-        if player_dob is not None:
-            return player_dob
-    raise ValueError(f"No birth date for '{name_key}' on Tennis Abstract, "
-                     "so ages can't be computed.")
+    page_html = _fetch_text(f"{BASE_URL}/cgi-bin/{page}.cgi?p={name_key}")
+    player_dob = _parse_dob(page_html or "")
+    if player_dob is None:
+        raise ValueError(f"No birth date for '{name_key}' on Tennis Abstract, "
+                         "so ages can't be computed.")
+    return player_dob
 
 
 def _display_name(name_key):
@@ -138,6 +143,7 @@ def get_matches(player_name):
     """
     name_key = _format_name(player_name)
     raw = _parse_matches(_download_career(name_key))
-    matches = _clean_matches(raw, _download_dob(name_key))
+    player_dob = _download_dob(name_key, _player_page(raw))
+    matches = _clean_matches(raw, player_dob)
     matches.insert(0, "player", _display_name(name_key))
     return matches

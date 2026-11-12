@@ -7,7 +7,7 @@ import requests
 from tennisplot import get_matches
 from tennisplot.data import (_clean_matches, _compute_opp_age, _download_career,
                              _display_name, _download_dob, _format_name,
-                             _parse_dob, _parse_matches)
+                             _parse_dob, _parse_matches, _player_page)
 
 MOCK_DIR = Path(__file__).parent / "mock"
 SERENA_DOB = pd.Timestamp("1981-09-26")  # mock female rows are Serena's
@@ -173,18 +173,24 @@ def test_download_career_other_http_error(monkeypatch):
         _download_career("SerenaWilliams")
 
 
-def test_download_dob_tries_men_page(monkeypatch):
-    pages = {"wplayer": (200, "<html></html>"),
-             "player.cgi": (200, "var dob = 19860603;")}
+def test_player_page_female(female_raw):
+    assert _player_page(female_raw) == "wplayer"
+
+
+def test_player_page_male(male_raw):
+    assert _player_page(male_raw) == "player"
+
+
+def test_download_dob_reads_page(monkeypatch):
+    pages = {"player.cgi?p=RafaelNadal": (200, "var dob = 19860603;")}
     monkeypatch.setattr(requests, "get", fake_site(pages))
-    assert _download_dob("RafaelNadal") == NADAL_DOB
+    assert _download_dob("RafaelNadal", "player") == NADAL_DOB
 
 
 def test_download_dob_missing(monkeypatch):
     monkeypatch.setattr(requests, "get", fake_site({"cgi-bin": (200, "")}))
     with pytest.raises(ValueError, match="No birth date"):
-        _download_dob("GastonSanchez")
-
+        _download_dob("GastonSanchez", "player")
 
 
 # get_matches (public) -------------------------------------------------------

@@ -94,8 +94,8 @@ on the mock JS files, and the download functions are tested with a fake
 
 - **Player's own birth date:** the Career JS file only has the opponent's
   birth date or age, so the player's birth date is read from their Tennis
-  Abstract page (`var dob = YYYYMMDD`), trying the women's page and then the
-  men's page.
+  Abstract page (`var dob = YYYYMMDD`): the women's page if the Career file
+  has opponents' birth dates, the men's page otherwise.
 - **Female vs. male files:** both use the same field positions. Field 16 is
   treated as a birth date when it is exactly 8 digits (women) and as an age
   otherwise (men), so the package never needs to know the player's gender.
