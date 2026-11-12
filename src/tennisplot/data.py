@@ -39,3 +39,18 @@ def _parse_matches(js_text):
     raw = pd.DataFrame(rows)
     raw["date"] = pd.to_datetime(raw["date"], format="%Y%m%d")
     return raw
+
+
+def _years_between(start, end):
+    """Return the years from `start` to `end` dates (days / 365.25)."""
+    return (end - start).dt.days / 365.25
+
+
+def _compute_opp_age(raw):
+    """Opponent's age in years, from a birth date (women) or an age (men)."""
+    values = raw["opp_birth_or_age"]
+    is_dob = values.str.fullmatch(r"\d{8}")  # YYYYMMDD
+    dob = pd.to_datetime(values.where(is_dob), format="%Y%m%d", errors="coerce")
+    age_from_dob = _years_between(dob, raw["date"])
+    age_given = pd.to_numeric(values.where(~is_dob), errors="coerce")  # "" -> NaN
+    return age_from_dob.where(is_dob, age_given)
