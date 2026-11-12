@@ -2,13 +2,37 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+import requests
 
-from tennisplot.data import (_clean_matches, _compute_opp_age, _format_name,
-                             _parse_dob, _parse_matches)
+from tennisplot.data import (_clean_matches, _compute_opp_age, _download_career,
+                             _download_dob, _format_name, _parse_dob,
+                             _parse_matches)
 
 MOCK_DIR = Path(__file__).parent / "mock"
 SERENA_DOB = pd.Timestamp("1981-09-26")  # mock female rows are Serena's
 NADAL_DOB = pd.Timestamp("1986-06-03")   # mock male rows are Nadal's
+
+
+class FakeResponse:
+    """Stands in for requests' Response, so tests never hit the live server."""
+
+    def __init__(self, status_code, text=""):
+        self.status_code = status_code
+        self.text = text
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise requests.HTTPError(f"{self.status_code} error")
+
+
+def fake_site(pages):
+    """Return a fake requests.get: URL containing a key -> (status, text)."""
+    def fake_get(url, **kwargs):
+        for key, (status_code, text) in pages.items():
+            if key in url:
+                return FakeResponse(status_code, text)
+        return FakeResponse(404)
+    return fake_get
 
 
 @pytest.fixture
@@ -131,3 +155,31 @@ def test_clean_matches_warns_about_missing_opp_age(female_raw):
     with pytest.warns(UserWarning, match="Dropped 1 matches"):
         clean = _clean_matches(female_raw, SERENA_DOB)
     assert len(clean) == 2
+
+
+# downloads (requests.get is replaced by a fake: no live server) -------------
+
+def test_download_career_unknown_player(monkeypatch):
+    monkeypatch.setattr(requests, "get", fake_site({}))  # every URL -> 404
+    with pytest.raises(ValueError, match="No Tennis Abstract player named "
+                                         "'GastonSanchez'"):
+        _download_career("GastonSanchez")
+
+
+def test_download_career_other_http_error(monkeypatch):
+    monkeypatch.setattr(requests, "get", fake_site({"jsmatches": (500, "")}))
+    with pytest.raises(requests.HTTPError):
+        _download_career("SerenaWilliams")
+
+
+def test_download_dob_tries_men_page(monkeypatch):
+    pages = {"wplayer": (200, "<html></html>"),
+             "player.cgi": (200, "var dob = 19860603;")}
+    monkeypatch.setattr(requests, "get", fake_site(pages))
+    assert _download_dob("RafaelNadal") == NADAL_DOB
+
+
+def test_download_dob_missing(monkeypatch):
+    monkeypatch.setattr(requests, "get", fake_site({"cgi-bin": (200, "")}))
+    with pytest.raises(ValueError, match="No birth date"):
+        _download_dob("GastonSanchez")

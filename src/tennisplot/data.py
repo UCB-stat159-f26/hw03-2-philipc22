@@ -5,6 +5,10 @@ import re
 import warnings
 
 import pandas as pd
+import requests
+
+BASE_URL = "https://www.tennisabstract.com"
+HEADERS = {"User-Agent": "Mozilla/5.0 (stat159 homework)"}
 
 # Positions of the fields we keep inside each match array.
 # Same positions for women and men; only the meaning of 16 differs:
@@ -87,3 +91,32 @@ def _clean_matches(raw, player_dob):
     df = _drop_missing_opp_age(df)
     df["age_diff"] = df["age"] - df["opp_age"]  # > 0: player was older
     return df[COLUMNS].sort_values("date").reset_index(drop=True)
+
+
+def _fetch_text(url):
+    """Download `url` and return its text, or None if the page doesn't exist."""
+    response = requests.get(url, headers=HEADERS, timeout=60)
+    if response.status_code == 404:
+        return None
+    response.raise_for_status()  # any other error (403, 500, ...) stops here
+    return response.text
+
+
+def _download_career(name_key):
+    """Return the text of the player's Career JS file; error if unknown."""
+    js_text = _fetch_text(f"{BASE_URL}/jsmatches/{name_key}Career.js")
+    if js_text is None:
+        raise ValueError(f"No Tennis Abstract player named '{name_key}'. "
+                         "Check the spelling, e.g. 'Serena Williams'.")
+    return js_text
+
+
+def _download_dob(name_key):
+    """Return the player's birth date from their Tennis Abstract page."""
+    for page in ["wplayer", "player"]:  # women's page, then men's page
+        page_html = _fetch_text(f"{BASE_URL}/cgi-bin/{page}.cgi?p={name_key}")
+        player_dob = _parse_dob(page_html or "")
+        if player_dob is not None:
+            return player_dob
+    raise ValueError(f"No birth date for '{name_key}' on Tennis Abstract, "
+                     "so ages can't be computed.")
