@@ -120,7 +120,38 @@ on the mock JS files, and the download functions are tested with a fake
 
 ## Personal Reflections
 
-TODO (Philip)
+- **A package is organized for someone else to use.** At first the package
+  layout felt uncomfortable compared with HW2's scripts, which I just ran top
+  to bottom. Now I understand how the organization works: `pyproject.toml`
+  makes `pip install git+...` possible, `src/tennisplot/` holds the code,
+  `tests/` holds the tests, and the data and plot code live in separate
+  modules. It also forced me to remove HW2's hard-coded pieces (Serena's
+  birth date, the 14 to 40 axis) so that any player name works.
+- **Testing on mock data is easier in every way.** Computationally, all 33
+  tests run in about a second without downloading anything. Logistically,
+  the live site rate-limited me with "429 Too Many Requests" during my own
+  install check, so tests that hit it would fail for reasons that have
+  nothing to do with my code. What made this possible was writing the
+  parsing functions to take text instead of URLs, and replacing
+  `requests.get` with a fake in the tests.
+- **The same file layout can mean different things.** The female and male
+  Career files use the same field positions, but field 16 is the opponent's
+  birth date for women ("19770119") and their age for men ("22.26"). Instead
+  of asking the user for the player's gender, the code checks whether the
+  value is exactly 8 digits. That handles both file types, and the mock
+  files test both paths.
+- **Small functions and small commits helped me stay organized.** The
+  20-line limit split HW2's roughly 35-line plotting function into four short
+  functions, each easy to read and test. Committing one step at a time, with
+  tests passing, made it easy to keep track of progress and to go back if
+  something broke. For example, the two rate-limit fixes were separate
+  commits made after the package already worked.
+- **AI help worked well, but I had to steer the workflow.** The assistant
+  was useful for planning the structure, explaining design choices, and
+  writing tests. It didn't always fit how I work, though. It gave me file
+  contents to paste into the terminal, which bash tried to run as commands,
+  and a README with code blocks inside it got cut off mid-paste. Next time
+  I would create files directly in the JupyterLab editor.
 
 ## AI Assistance
 
