@@ -2,6 +2,7 @@
 
 import json
 import re
+import warnings
 
 import pandas as pd
 
@@ -18,6 +19,10 @@ FIELDS = {
     11: "opponent",          # "Anne Miller"
     16: "opp_birth_or_age",  # see above
 }
+
+# Columns of the clean data frame, in order
+COLUMNS = ["date", "tournament", "level", "opponent", "result",
+           "age", "opp_age", "age_diff"]
 
 
 def _format_name(player_name):
@@ -63,3 +68,22 @@ def _parse_dob(page_html):
     if found is None:
         return None
     return pd.to_datetime(found.group(1), format="%Y%m%d")
+
+
+def _drop_missing_opp_age(df):
+    """Drop matches with no opponent age, with a warning saying how many."""
+    missing = df["opp_age"].isna()
+    if missing.any():
+        warnings.warn(f"Dropped {missing.sum()} matches with no opponent age.")
+    return df[~missing]
+
+
+def _clean_matches(raw, player_dob):
+    """Drop walkovers, add age, opp_age and age_diff, keep COLUMNS."""
+    # Walkovers: no tennis was played. Retirements ("RET") are kept.
+    df = raw[~raw["score"].str.contains("W/O", na=False)].copy()
+    df["age"] = _years_between(player_dob, df["date"])
+    df["opp_age"] = _compute_opp_age(df)
+    df = _drop_missing_opp_age(df)
+    df["age_diff"] = df["age"] - df["opp_age"]  # > 0: player was older
+    return df[COLUMNS].sort_values("date").reset_index(drop=True)

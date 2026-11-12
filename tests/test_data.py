@@ -3,10 +3,12 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from tennisplot.data import (_compute_opp_age, _format_name, _parse_dob,
-                             _parse_matches)
+from tennisplot.data import (_clean_matches, _compute_opp_age, _format_name,
+                             _parse_dob, _parse_matches)
 
 MOCK_DIR = Path(__file__).parent / "mock"
+SERENA_DOB = pd.Timestamp("1981-09-26")  # mock female rows are Serena's
+NADAL_DOB = pd.Timestamp("1986-06-03")   # mock male rows are Nadal's
 
 
 @pytest.fixture
@@ -87,3 +89,45 @@ def test_parse_dob_ignores_other_dob_words():
 
 def test_parse_dob_missing_returns_none():
     assert _parse_dob("<html>no player here</html>") is None
+
+
+# _clean_matches -------------------------------------------------------------
+
+def test_clean_matches_female_ages(female_raw):
+    clean = _clean_matches(female_raw, SERENA_DOB)
+    first = clean.iloc[0]  # 1995-10-30 vs Anne Miller (born 1977-01-19)
+    assert first["age"] == pytest.approx(5147 / 365.25)       # about 14.1
+    assert first["opp_age"] == pytest.approx(6858 / 365.25)   # about 18.8
+    assert first["age_diff"] == pytest.approx((5147 - 6858) / 365.25)
+
+
+def test_clean_matches_male_ages(male_raw):
+    clean = _clean_matches(male_raw, NADAL_DOB)
+    first = clean.iloc[0]  # 2001-09-10 vs Guillermo Platel (age 22.26)
+    assert first["age"] == pytest.approx(5578 / 365.25)       # about 15.3
+    assert first["age_diff"] == pytest.approx(5578 / 365.25 - 22.264202601)
+
+
+def test_clean_matches_columns(female_raw):
+    clean = _clean_matches(female_raw, SERENA_DOB)
+    assert list(clean.columns) == ["date", "tournament", "level", "opponent",
+                                   "result", "age", "opp_age", "age_diff"]
+
+
+def test_clean_matches_drops_walkovers(female_raw):
+    female_raw.loc[1, "score"] = "W/O"
+    clean = _clean_matches(female_raw, SERENA_DOB)
+    assert "Alexia Dechaume Balleret" not in clean["opponent"].tolist()
+    assert len(clean) == 2
+
+
+def test_clean_matches_keeps_retirements(female_raw):
+    female_raw.loc[1, "score"] = "6-4 2-1 RET"
+    assert len(_clean_matches(female_raw, SERENA_DOB)) == 3
+
+
+def test_clean_matches_warns_about_missing_opp_age(female_raw):
+    female_raw.loc[0, "opp_birth_or_age"] = ""
+    with pytest.warns(UserWarning, match="Dropped 1 matches"):
+        clean = _clean_matches(female_raw, SERENA_DOB)
+    assert len(clean) == 2
