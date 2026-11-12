@@ -3,7 +3,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from tennisplot.data import _compute_opp_age, _format_name, _parse_matches
+from tennisplot.data import (_compute_opp_age, _format_name, _parse_dob,
+                             _parse_matches)
 
 MOCK_DIR = Path(__file__).parent / "mock"
 
@@ -69,3 +70,20 @@ def test_compute_opp_age_uses_given_age(male_raw):
 def test_compute_opp_age_missing_is_nan(female_raw):
     female_raw.loc[0, "opp_birth_or_age"] = ""
     assert _compute_opp_age(female_raw).isna().tolist() == [True, False, False]
+
+
+# _parse_dob -----------------------------------------------------------------
+
+def test_parse_dob_finds_birth_date():
+    page_html = "<script>var fullname = 'Serena Williams';\nvar dob = 19810926;</script>"
+    assert _parse_dob(page_html) == pd.Timestamp("1981-09-26")
+
+
+def test_parse_dob_ignores_other_dob_words():
+    # The real page also has JS code like `function age(dobString) {...}`
+    page_html = "function age(dobString) { dobString.substring(0, 4) }"
+    assert _parse_dob(page_html) is None
+
+
+def test_parse_dob_missing_returns_none():
+    assert _parse_dob("<html>no player here</html>") is None

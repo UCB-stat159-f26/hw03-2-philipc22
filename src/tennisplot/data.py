@@ -1,6 +1,7 @@
 """Download and clean a player's career matches from Tennis Abstract."""
 
 import json
+import re
 
 import pandas as pd
 
@@ -54,3 +55,11 @@ def _compute_opp_age(raw):
     age_from_dob = _years_between(dob, raw["date"])
     age_given = pd.to_numeric(values.where(~is_dob), errors="coerce")  # "" -> NaN
     return age_from_dob.where(is_dob, age_given)
+
+
+def _parse_dob(page_html):
+    """Return the birth date on a player page ('var dob = 19810926;'), or None."""
+    found = re.search(r"\bdob\s*=\s*['\"]?(\d{8})", page_html)
+    if found is None:
+        return None
+    return pd.to_datetime(found.group(1), format="%Y%m%d")
